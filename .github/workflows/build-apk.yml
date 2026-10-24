@@ -1,5 +1,9 @@
 name: build-apk
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-apk.yml'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -9,7 +13,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      - name: Install SDK packages
+        run: |
+          SDKM=$(ls -d $ANDROID_HOME/cmdline-tools/*/bin/sdkmanager | head -n1)
+          yes | $SDKM --licenses > /dev/null || true
+          $SDKM "platforms;android-34" "build-tools;34.0.0"
       - name: Build
         working-directory: launcher
         run: |
@@ -19,6 +27,7 @@ jobs:
       - name: Sign if needed
         run: |
           APK=$(find launcher/app/build/outputs/apk/release -name '*.apk' | head -n1)
+          [ -n "$APK" ] || { echo "No APK found"; exit 1; }
           echo "Found $APK"
           mkdir -p out
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n1)
